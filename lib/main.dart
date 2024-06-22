@@ -31,7 +31,6 @@ class WebViewPage extends StatefulWidget {
 
 class _WebViewPageState extends State<WebViewPage> {
   late InAppWebViewController _webViewController;
-  int _selectedIndex = 0;
   bool _permissionsRequested = false;
 
   @override
@@ -116,19 +115,53 @@ class _WebViewPageState extends State<WebViewPage> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: InAppWebView(
-          initialUrlRequest: URLRequest(
-            url: WebUri('https://xn--4k0b046bf8b.shop/')
-          ),
-          onWebViewCreated: (controller) {
-            _webViewController = controller;
-          },
-        ),
-      ),
-    );
+  void _sendCurrentLocation() async {
+    try {
+      var position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      print("Sending current location: Latitude = ${position.latitude}, Longitude = ${position.longitude}");
+
+      // JavaScript 함수 호출
+      _webViewController.evaluateJavascript(
+        source: """
+          console.log("JavaScript function called with Latitude = ${position.latitude}, Longitude = ${position.longitude}");
+          window.sendLocation(${position.latitude}, ${position.longitude});
+        """
+      );
+    } catch (e) {
+      print("Failed to get current location: $e");
+    }
   }
+
+  @override
+Widget build(BuildContext context) {
+  return Scaffold(
+    body: SafeArea(
+      child: Stack(
+        children: [
+          InAppWebView(
+            initialUrlRequest: URLRequest(
+              url: WebUri('https://xn--4k0b046bf8b.shop/')
+            ),
+            onWebViewCreated: (controller) {
+              _webViewController = controller;
+            },
+          ),
+          Positioned(
+            top: 5,
+            right: 5,
+            child: Container(
+              width: 56,
+              height: 56,
+              child: IconButton(
+                icon: Icon(Icons.my_location, color: Colors.white),
+                onPressed: _sendCurrentLocation,
+                tooltip: '현재 위치',
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
 }
