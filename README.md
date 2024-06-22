@@ -1,6 +1,6 @@
-# safearea
+# Safeplace
 
-A new Flutter project.
+Safeplace는 혼잡도 API를 기반으로 하는 밀집 경보 어플리케이션입니다
 
 ## Getting Started
 
