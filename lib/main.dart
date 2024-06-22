@@ -34,27 +34,35 @@ class _WebViewPageState extends State<WebViewPage> {
   bool _permissionsRequested = false;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!_permissionsRequested) {
-      _permissionsRequested = true;
-      // Schedule the permission dialog to be shown after the build process.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _showPermissionDialog(); 
+  void initState() {
+    super.initState();
+    _checkPermission();
+  }
+
+  Future<void> _checkPermission() async {
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.deniedForever || permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+      setState(() {
+        _permissionsRequested = true;
       });
+    } else {
+      _requestPermissionOnStartup();
     }
+  }
+
+  void _requestPermissionOnStartup() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_permissionsRequested) {
+        _permissionsRequested = true;
+        _showPermissionDialog();
+      }
+    });
   }
 
   Future<void> _requestPermissions() async {
     LocationPermission permission = await Geolocator.requestPermission();
     if (permission == LocationPermission.deniedForever) {
-      // Handle permanently denied permission.
       _showDeniedForeverDialog();
-      return;
-    }
-
-    if (permission == LocationPermission.denied) {
-      await Geolocator.requestPermission();
     }
   }
 
@@ -63,7 +71,7 @@ class _WebViewPageState extends State<WebViewPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('권한 거부됨'),
-        content: Text('권한이 거부되어 위치를 확인할 수 없습니다'),
+        content: Text('권한이 영구적으로 거부되었습니다.'),
         actions: <Widget>[
           TextButton(
             child: Text('확인'),
@@ -77,7 +85,6 @@ class _WebViewPageState extends State<WebViewPage> {
   Future<void> _showPermissionDialog() async {
     showDialog(
       context: context,
-      barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: Text('위치 정보 권한 요청'),
         content: Text('Safeplace가 사용자의 위치를 확인하기 위해 위치 권한이 필요합니다'),
@@ -89,8 +96,8 @@ class _WebViewPageState extends State<WebViewPage> {
           TextButton(
             child: Text('확인'),
             onPressed: () {
-              Navigator.of(context).pop(); // Close dialog first
-              _requestPermissions(); // Then request permissions
+              Navigator.of(context).pop();
+              _requestPermissions();
             },
           ),
         ],
@@ -107,7 +114,7 @@ class _WebViewPageState extends State<WebViewPage> {
           children: <Widget>[
             InAppWebView(
               initialUrlRequest: URLRequest(
-                url: WebUri('https://xn--4k0b046bf8b.shop/'), // Correct URL parsing
+                url: WebUri('https://xn--4k0b046bf8b.shop/'),
               ),
               initialOptions: InAppWebViewGroupOptions(
                 android: AndroidInAppWebViewOptions(useHybridComposition: true),
