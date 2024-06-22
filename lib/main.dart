@@ -12,7 +12,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SafeArea Example',
+      title: 'Safeplace',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
@@ -30,6 +30,7 @@ class WebViewPage extends StatefulWidget {
 }
 
 class _WebViewPageState extends State<WebViewPage> {
+  late InAppWebViewController _webViewController;
   int _selectedIndex = 0;
   bool _permissionsRequested = false;
 
@@ -41,12 +42,17 @@ class _WebViewPageState extends State<WebViewPage> {
 
   Future<void> _checkPermission() async {
     var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.deniedForever || permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+    print("Initial Location Permission Status: $permission");
+
+    if (permission == LocationPermission.denied) {
+      _requestPermissionOnStartup();
+    } else if (permission == LocationPermission.deniedForever) {
+      print("Location permissions are permanently denied");
+    } else {
       setState(() {
         _permissionsRequested = true;
       });
-    } else {
-      _requestPermissionOnStartup();
+      _getCurrentLocation();
     }
   }
 
@@ -61,40 +67,45 @@ class _WebViewPageState extends State<WebViewPage> {
 
   Future<void> _requestPermissions() async {
     LocationPermission permission = await Geolocator.requestPermission();
-    if (permission == LocationPermission.deniedForever) {
-      _showDeniedForeverDialog();
+    print("Location Permission Status: $permission");
+
+    if (permission != LocationPermission.deniedForever) {
+      _getCurrentLocation();
+    } else {
+      print("Location permissions are permanently denied");
     }
   }
 
-  void _showDeniedForeverDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('권한 거부됨'),
-        content: Text('권한이 영구적으로 거부되었습니다.'),
-        actions: <Widget>[
-          TextButton(
-            child: Text('확인'),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ],
-      ),
-    );
+  Future<void> _getCurrentLocation() async {
+    try {
+      var position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      print("Current Location from Flutter: Latitude = ${position.latitude}, Longitude = ${position.longitude}");
+
+      // JavaScript 함수 호출
+      _webViewController.evaluateJavascript(
+        source: """
+          console.log("JavaScript function called with Latitude = ${position.latitude}, Longitude = ${position.longitude}");
+          window.sendLocation(${position.latitude}, ${position.longitude});
+        """
+      );
+    } catch (e) {
+      print("Failed to get current location: $e");
+    }
   }
 
-  Future<void> _showPermissionDialog() async {
+  void _showPermissionDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('위치 정보 권한 요청'),
-        content: Text('Safeplace가 사용자의 위치를 확인하기 위해 위치 권한이 필요합니다'),
+        content: Text('이 앱은 위치 정보를 요청하고 있습니다. 위치 서비스를 허용하시겠습니까?'),
         actions: <Widget>[
           TextButton(
-            child: Text('취소'),
+            child: Text('거절'),
             onPressed: () => Navigator.of(context).pop(),
           ),
           TextButton(
-            child: Text('확인'),
+            child: Text('허용'),
             onPressed: () {
               Navigator.of(context).pop();
               _requestPermissions();
@@ -109,18 +120,13 @@ class _WebViewPageState extends State<WebViewPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: IndexedStack(
-          index: _selectedIndex,
-          children: <Widget>[
-            InAppWebView(
-              initialUrlRequest: URLRequest(
-                url: WebUri('https://xn--4k0b046bf8b.shop/'),
-              ),
-              initialOptions: InAppWebViewGroupOptions(
-                android: AndroidInAppWebViewOptions(useHybridComposition: true),
-              ),
-            ),
-          ],
+        child: InAppWebView(
+          initialUrlRequest: URLRequest(
+            url: WebUri('https://xn--4k0b046bf8b.shop/')
+          ),
+          onWebViewCreated: (controller) {
+            _webViewController = controller;
+          },
         ),
       ),
     );
