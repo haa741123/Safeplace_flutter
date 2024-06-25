@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 void main() {
   runApp(const MyApp());
@@ -9,8 +10,13 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
+  Future<InitializationStatus> _initGoogleMobileAds() {
+    return MobileAds.instance.initialize();
+  }
+
   @override
   Widget build(BuildContext context) {
+    _initGoogleMobileAds(); // 광고 초기화를 보장합니다.
     return MaterialApp(
       title: 'Safeplace',
       theme: ThemeData(
@@ -80,7 +86,6 @@ class _WebViewPageState extends State<WebViewPage> {
       var position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
       print("Current Location from Flutter: Latitude = ${position.latitude}, Longitude = ${position.longitude}");
 
-      // JavaScript 함수 호출
       _webViewController.evaluateJavascript(
         source: """
           console.log("JavaScript function called with Latitude = ${position.latitude}, Longitude = ${position.longitude}");
@@ -95,73 +100,96 @@ class _WebViewPageState extends State<WebViewPage> {
   void _showPermissionDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('위치 정보 권한 요청'),
-        content: Text('이 앱은 위치 정보를 요청하고 있습니다. 위치 서비스를 허용하시겠습니까?'),
-        actions: <Widget>[
-          TextButton(
-            child: Text('거절'),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-          TextButton(
-            child: Text('허용'),
-            onPressed: () {
-              Navigator.of(context).pop();
-              _requestPermissions();
-            },
-          ),
-        ],
-      ),
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('위치 정보 권한이 필요합니다'),
+          content: Text('Safeplace에서 사용자의 위치를 확인하기 위해 권한이 필요합니다'),
+          actions: <Widget>[
+            TextButton(
+              child: Text('확인'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _requestPermissions();
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 
-  void _sendCurrentLocation() async {
-    try {
-      var position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
-      print("Sending current location: Latitude = ${position.latitude}, Longitude = ${position.longitude}");
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: InAppWebView(
+                initialUrlRequest: URLRequest(
+                  url: WebUri('https://xn--4k0b046bf8b.shop/')
+                ),
+                onWebViewCreated: (controller) {
+                  _webViewController = controller;
+                },
+              ),
+            ),
+            Container(
+              height: 50, // 광고 배너의 높이 설정
+              width: double.infinity, // 가로를 꽉 채우도록 설정
+              child: AdBanner(), // 배너 광고 위젯
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-      // JavaScript 함수 호출
-      _webViewController.evaluateJavascript(
-        source: """
-          console.log("JavaScript function called with Latitude = ${position.latitude}, Longitude = ${position.longitude}");
-          window.sendLocation(${position.latitude}, ${position.longitude});
-        """
-      );
-    } catch (e) {
-      print("Failed to get current location: $e");
-    }
+class AdBanner extends StatefulWidget {
+  const AdBanner({Key? key}) : super(key: key);
+
+  @override
+  _AdBannerState createState() => _AdBannerState();
+}
+
+class _AdBannerState extends State<AdBanner> {
+  BannerAd? _bannerAd;
+
+  @override
+  void initState() {
+    super.initState();
+    _initBannerAd();
+  }
+
+  void _initBannerAd() {
+    _bannerAd = BannerAd(
+      adUnitId: 'ca-app-pub-3940256099942544/6300978111',  // Test ad unit ID
+      size: AdSize.banner,
+      request: AdRequest(),
+      listener: BannerAdListener(
+        onAdLoaded: (_) {
+          setState(() {});
+        },
+        onAdFailedToLoad: (ad, error) {
+          ad.dispose();
+          print('Ad failed to load: $error');
+        },
+      ),
+    )..load();
   }
 
   @override
-Widget build(BuildContext context) {
-  return Scaffold(
-    body: SafeArea(
-      child: Stack(
-        children: [
-          InAppWebView(
-            initialUrlRequest: URLRequest(
-              url: WebUri('https://xn--4k0b046bf8b.shop/')
-            ),
-            onWebViewCreated: (controller) {
-              _webViewController = controller;
-            },
-          ),
-          Positioned(
-            top: 5,
-            right: 5,
-            child: Container(
-              width: 56,
-              height: 56,
-              child: IconButton(
-                icon: Icon(Icons.my_location, color: Colors.white),
-                onPressed: _sendCurrentLocation,
-                tooltip: '현재 위치',
-              ),
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
+  Widget build(BuildContext context) {
+    return Container(
+      alignment: Alignment.center,
+      child: _bannerAd == null ? SizedBox(height: 50) : AdWidget(ad: _bannerAd!),
+    );
+  }
+
+  @override
+  void dispose() {
+    _bannerAd?.dispose();
+    super.dispose();
+  }
 }
