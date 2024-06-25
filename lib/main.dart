@@ -38,6 +38,8 @@ class WebViewPage extends StatefulWidget {
 class _WebViewPageState extends State<WebViewPage> {
   late InAppWebViewController _webViewController;
   bool _permissionsRequested = false;
+  int _gpsButtonClickCount = 0;
+  InterstitialAd? _interstitialAd;
 
   @override
   void initState() {
@@ -102,11 +104,11 @@ class _WebViewPageState extends State<WebViewPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('위치 정보 권한이 필요합니다'),
-          content: Text('Safeplace에서 사용자의 위치를 확인하기 위해 권한이 필요합니다'),
+          title: Text('위치 정보 권한 요청'),
+          content: Text('Safeplace에서 혼잡도 정보를 제공하기 위해 사용자의 위치를 조회하려고 합니다'),
           actions: <Widget>[
             TextButton(
-              child: Text('확인'),
+              child: Text('허용'),
               onPressed: () {
                 Navigator.of(context).pop();
                 _requestPermissions();
@@ -118,31 +120,117 @@ class _WebViewPageState extends State<WebViewPage> {
     );
   }
 
+  void _loadInterstitialAd() {
+    InterstitialAd.load(
+      adUnitId: 'ca-app-pub-3940256099942544/1033173712', // 실제 광고 단위 ID로 교체 필요
+      request: AdRequest(),
+      adLoadCallback: InterstitialAdLoadCallback(
+        onAdLoaded: (ad) {
+          ad.fullScreenContentCallback = FullScreenContentCallback(
+            onAdDismissedFullScreenContent: (ad) {
+              _moveToHome();
+            },
+          );
+
+          setState(() {
+            _interstitialAd = ad;
+          });
+        },
+        onAdFailedToLoad: (err) {
+          print('Failed to load an interstitial ad: ${err.message}');
+        },
+      ),
+    );
+  }
+
+  void _showInterstitialAd() {
+    if (_interstitialAd != null) {
+      _interstitialAd?.show();
+      _interstitialAd = null; // Reset the ad instance after showing
+      _gpsButtonClickCount = 0; // Reset the click count
+    } else {
+      _moveToHome();
+    }
+  }
+
+  void _moveToHome() {
+    Navigator.of(context).pop(); // Example action to move to the home screen
+  }
+
+  void _handleGpsButtonClick() {
+    _gpsButtonClickCount++;
+    if (_gpsButtonClickCount >= 3) {
+      _loadInterstitialAd();
+      _showInterstitialAd();
+    } else {
+      _sendCurrentLocation();
+    }
+  }
+
+  Future<void> _sendCurrentLocation() async {
+    try {
+      var position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      print("Sending current location: Latitude = ${position.latitude}, Longitude = ${position.longitude}");
+
+      _webViewController.evaluateJavascript(
+        source: """
+          console.log("JavaScript function called with Latitude = ${position.latitude}, Longitude = ${position.longitude}");
+          window.sendLocation(${position.latitude}, ${position.longitude});
+        """
+      );
+    } catch (e) {
+      print("Failed to get current location: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            Expanded(
-              child: InAppWebView(
-                initialUrlRequest: URLRequest(
-                  url: WebUri('https://xn--4k0b046bf8b.shop/')
+            Column(
+              children: [
+                Expanded(
+                  child: InAppWebView(
+                    initialUrlRequest: URLRequest(
+                      url: WebUri('https://xn--4k0b046bf8b.shop/')
+                    ),
+                    onWebViewCreated: (controller) {
+                      _webViewController = controller;
+                    },
+                  ),
                 ),
-                onWebViewCreated: (controller) {
-                  _webViewController = controller;
-                },
-              ),
+                Container(
+                  height: 50, // 광고 배너의 높이 설정
+                  width: double.infinity, // 가로를 꽉 채우도록 설정
+                  child: AdBanner(), // 배너 광고 위젯
+                ),
+              ],
             ),
-            Container(
-              height: 50, // 광고 배너의 높이 설정
-              width: double.infinity, // 가로를 꽉 채우도록 설정
-              child: AdBanner(), // 배너 광고 위젯
+            Positioned(
+              top: 5,
+              right: 5,
+              child: Container(
+                width: 56,
+                height: 56,
+                child: IconButton(
+                  icon: Icon(Icons.my_location, color: Colors.white),
+                  onPressed: _handleGpsButtonClick,
+                  tooltip: '현재 위치',
+                ),
+              ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _interstitialAd?.dispose();
+    super.dispose();
   }
 }
 
