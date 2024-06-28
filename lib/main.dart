@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 void main() {
-  runApp(const MyApp());
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]) // Locking orientation to portrait
+      .then((_) {
+    runApp(const MyApp());
+  });
 }
 
 class MyApp extends StatelessWidget {
@@ -16,7 +21,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    _initGoogleMobileAds(); // 광고 초기화를 보장합니다.
+    _initGoogleMobileAds(); // Ensure ad initialization
     return MaterialApp(
       title: 'Safeplace',
       theme: ThemeData(
@@ -89,7 +94,7 @@ class _WebViewPageState extends State<WebViewPage> {
       print("Current Location from Flutter: Latitude = ${position.latitude}, Longitude = ${position.longitude}");
 
       _webViewController.evaluateJavascript(
-        source: """
+          source: """
           console.log("JavaScript function called with Latitude = ${position.latitude}, Longitude = ${position.longitude}");
           window.sendLocation(${position.latitude}, ${position.longitude});
         """
@@ -173,7 +178,7 @@ class _WebViewPageState extends State<WebViewPage> {
       print("Sending current location: Latitude = ${position.latitude}, Longitude = ${position.longitude}");
 
       _webViewController.evaluateJavascript(
-        source: """
+          source: """
           console.log("JavaScript function called with Latitude = ${position.latitude}, Longitude = ${position.longitude}");
           window.sendLocation(${position.latitude}, ${position.longitude});
         """
@@ -196,8 +201,26 @@ class _WebViewPageState extends State<WebViewPage> {
                     initialUrlRequest: URLRequest(
                       url: WebUri('https://xn--4k0b046bf8b.shop/')
                     ),
+                    initialSettings: InAppWebViewSettings(
+                      disableContextMenu: true, // Disable context menu
+                      useShouldOverrideUrlLoading: true, // Disable URL loading on tap
+                      supportZoom: false, // Disable zoom
+                      javaScriptCanOpenWindowsAutomatically: false, // Disable JavaScript opening new windows
+                    ),
                     onWebViewCreated: (controller) {
                       _webViewController = controller;
+                    },
+                    shouldOverrideUrlLoading: (controller, navigationAction) async {
+                      return NavigationActionPolicy.CANCEL;
+                    },
+                    onLoadStop: (controller, url) async {
+                      await _webViewController.evaluateJavascript(source: """
+                        document.body.style.webkitUserSelect = 'none';
+                        document.body.style.khtmlUserSelect = 'none';
+                        document.body.style.mozUserSelect = 'none';
+                        document.body.style.msUserSelect = 'none';
+                        document.body.style.userSelect = 'none';
+                      """);
                     },
                   ),
                 ),
@@ -215,7 +238,7 @@ class _WebViewPageState extends State<WebViewPage> {
                 width: 56,
                 height: 56,
                 child: IconButton(
-                  icon: Icon(Icons.my_location, color: Colors.white),
+                  icon: const Icon(Icons.my_location, color: Colors.white),
                   onPressed: _handleGpsButtonClick,
                   tooltip: '현재 위치',
                 ),
@@ -254,7 +277,7 @@ class _AdBannerState extends State<AdBanner> {
     _bannerAd = BannerAd(
       adUnitId: 'ca-app-pub-3940256099942544/6300978111',  // Test ad unit ID
       size: AdSize.banner,
-      request: AdRequest(),
+      request: const AdRequest(),
       listener: BannerAdListener(
         onAdLoaded: (_) {
           setState(() {});
