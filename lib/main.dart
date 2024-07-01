@@ -79,12 +79,12 @@ class _WebViewPageState extends State<WebViewPage> {
 
   Future<void> _requestPermissions() async {
     LocationPermission permission = await Geolocator.requestPermission();
-    print("Location Permission Status: $permission");
+    print("위치 권한 상태 : $permission");
 
     if (permission != LocationPermission.deniedForever) {
       _getCurrentLocation();
     } else {
-      print("Location permissions are permanently denied");
+      print("위치 권한이 없습니다 설정에 들어가서 권한을 허용해주세요");
     }
   }
 
@@ -100,7 +100,7 @@ class _WebViewPageState extends State<WebViewPage> {
         """
       );
     } catch (e) {
-      print("Failed to get current location: $e");
+      print("위치를 인식하는데 실패했습니다: $e");
     }
   }
 
@@ -199,7 +199,7 @@ class _WebViewPageState extends State<WebViewPage> {
                 Expanded(
                   child: InAppWebView(
                     initialUrlRequest: URLRequest(
-                      url: WebUri('https://xn--4k0b046bf8b.shop/')
+                      url: WebUri('https://warmworld.shop/')
                     ),
                     initialSettings: InAppWebViewSettings(
                       disableContextMenu: true, // Disable context menu
