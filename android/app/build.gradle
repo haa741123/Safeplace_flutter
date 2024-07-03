@@ -24,7 +24,7 @@ if (flutterVersionName == null) {
 }
 
 android {
-    namespace = "com.example.safearea"
+    namespace = "com.safeplace.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -34,21 +34,35 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.safearea"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
+        applicationId = "com.safeplace.app"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutterVersionCode.toInteger()
         versionName = flutterVersionName
     }
 
+    signingConfigs {
+        debug {
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+            storeFile file(System.getenv('HOME') + "/.android/debug.keystore")
+            storePassword 'android'
+        }
+        release {
+            keyAlias 'safeplace'
+            keyPassword 'lg159753'  // 키 생성 시 입력한 비밀번호로 대체하세요.
+            storeFile file('C:/Users/haa74/Desktop/Safeplace_flutter/safeplace.jks')  // 키스토어 파일의 실제 경로.
+            storePassword 'lg159753'  // 키스토어 생성 시 입력한 비밀번호로 대체하세요.
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.debug
+            // ProGuard를 활성화하여 코드 축소 및 난독화
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
         }
     }
 }
