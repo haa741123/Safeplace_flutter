@@ -15,7 +15,7 @@ if (localPropertiesFile.exists()) {
 
 def flutterVersionCode = localProperties.getProperty("flutter.versionCode")
 if (flutterVersionCode == null) {
-    flutterVersionCode = "4"
+    flutterVersionCode = "2"
 }
 
 def flutterVersionName = localProperties.getProperty("flutter.versionName")
@@ -42,12 +42,6 @@ android {
     }
 
     signingConfigs {
-        debug {
-            keyAlias 'androiddebugkey'
-            keyPassword 'android'
-            storeFile file(System.getenv('HOME') + "/.android/debug.keystore")
-            storePassword 'android'
-        }
         release {
             keyAlias 'safeplace'
             keyPassword 'lg159753'  // 키 생성 시 입력한 비밀번호로 대체하세요.
